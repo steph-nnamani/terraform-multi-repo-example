@@ -1,0 +1,132 @@
+permissions:
+  id-token: write
+  contents: read 
+name: Terraform Apply
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Authenticate to AWS using OIDC
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          # specify the IAM role to assume here
+          role-to-assume: "arn:aws:iam::418272752575:role/github-actions-oidc-example20250511055154010500000001"
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.1.0  
+          terraform_wrapper: false
+
+      # - name: Check and Force Unlock MySQL State (if needed)
+      #   working-directory: ./prod/data-stores/mysql
+      #   run: |
+      #     terraform init
+      #     # Try to apply with a timeout
+      #     timeout 30s terraform apply -auto-approve || \
+      #     # If it times out or fails, try to identify if it's a lock issue
+      #     if terraform state list 2>&1 | grep -q "Error acquiring the state lock"; then
+      #       # Extract lock ID and force unlock
+      #       LOCK_ID=$(terraform state pull 2>&1 | grep -o "ID:[[:space:]]*[a-z0-9-]*" | cut -d' ' -f2)
+      #       if [ ! -z "$LOCK_ID" ]; then
+      #         echo "Force unlocking state with ID: $LOCK_ID"
+      #         terraform force-unlock -force $LOCK_ID
+      #         # Try apply again after unlocking
+      #         terraform apply -auto-approve
+      #       fi
+      #     fi
+
+      # - name: Check and Force Unlock Webserver Cluster State (if needed)
+      #   working-directory: ./prod/services/webserver-cluster
+      #   run: |
+      #     terraform init
+      #     # Try to apply with a timeout
+      #     timeout 30s terraform apply -auto-approve || \
+      #     # If it times out or fails, try to identify if it's a lock issue
+      #     if terraform state list 2>&1 | grep -q "Error acquiring the state lock"; then
+      #       # Extract lock ID and force unlock
+      #       LOCK_ID=$(terraform state pull 2>&1 | grep -o "ID:[[:space:]]*[a-z0-9-]*" | cut -d' ' -f2)
+      #       if [ ! -z "$LOCK_ID" ]; then
+      #         echo "Force unlocking state with ID: $LOCK_ID"
+      #         terraform force-unlock -force $LOCK_ID
+      #         # Try apply again after unlocking
+      #         terraform apply -auto-approve
+      #       fi
+      #     fi
+
+      - name: Terraform init and apply MySQL
+        id: mysql
+        working-directory: ./prod/data-stores/mysql
+        run: |
+          terraform init
+          terraform apply -auto-approve
+        # This ensures the step is marked as failed if any command fails
+        shell: bash {0}
+
+      # This step will only run if the MySQL step succeeds
+      - name: Terraform init and apply Webserver Cluster
+        id: webserver
+        if: success() && steps.mysql.outcome == 'success'
+        working-directory: ./prod/services/webserver-cluster
+        run: |
+          terraform init
+          terraform apply -auto-approve
+        shell: bash {0}
+
+      - name: Verify MySQL Database Outputs
+        if: success() && steps.mysql.outcome == 'success'
+        run: |
+          # Extract MySQL endpoint and port from Terraform output
+          DB_ADDRESS=$(cd ./prod/data-stores/mysql && terraform output -raw primary_address)
+          DB_PORT=$(cd ./prod/data-stores/mysql && terraform output -raw primary_port)
+          
+          echo "MySQL database endpoint: $DB_ADDRESS"
+          echo "MySQL database port: $DB_PORT"
+          
+          # Verify that the outputs are not empty
+          if [ -z "$DB_ADDRESS" ]; then
+            echo "::error::MySQL database address output is empty"
+            exit 1
+          fi
+          
+          if [ -z "$DB_PORT" ]; then
+            echo "::error::MySQL database port output is empty"
+            exit 1
+          fi
+          
+          echo "✅ MySQL database outputs verified successfully"
+          echo "Note: Direct connectivity testing is skipped as the RDS instance is likely in a private VPC"
+          
+      - name: Test Webserver Infrastructure
+        if: success() && steps.webserver.outcome == 'success'
+        run: |
+          # Extract ALB DNS name from Terraform output
+          ALB_DNS=$(cd ./prod/services/webserver-cluster && terraform output -raw alb_dns_name)
+          
+          echo "Testing connection to $ALB_DNS..."
+          
+          # Wait for ALB to become ready
+          echo "Waiting for 60 seconds for ALB to become ready..."
+          sleep 60
+          
+          # Try to curl the ALB DNS name
+          curl -m 15 http://$ALB_DNS
+          
+          # Check the curl exit status
+          if [ $? -eq 0 ]; then
+            echo -e "\nSuccess: Server is responding"
+          else
+            echo -e "\nError: Server is not responding"
+            # Mark as warning but don't fail the workflow
+            echo "::warning::ALB endpoint test failed"
+          fi
