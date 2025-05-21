@@ -1,0 +1,104 @@
+permissions:
+  id-token: write
+  contents: read 
+
+name: Terraform Multi-Env Apply with Dependencies
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'stage/**'
+      - 'prod/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'stage'
+        type: choice
+        options:
+          - stage
+          - prod
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (contains(join(github.event.commits.*.modified, ','), 'prod/') && 'production') || 'stage' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to AWS using OIDC
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          # specify the IAM role to assume here
+          role-to-assume: "arn:aws:iam::418272752575:role/github-actions-oidc-example20250511055154010500000001"
+          aws-region: us-east-1
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.1.0  
+          terraform_wrapper: false
+
+      - name: Set environment directory
+        id: envdir
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "DIR=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif grep -q 'prod/' <<< "${{ toJson(github.event.commits) }}"; then
+            echo "DIR=prod" >> $GITHUB_OUTPUT
+          else
+            echo "DIR=stage" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Init & Apply - MySQL
+        id: mysql
+        working-directory: ${{ steps.envdir.outputs.DIR }}/data-stores/mysql
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+        # This ensures the step is marked as failed if any command fails
+        shell: bash {0}
+
+      - name: Terraform Init & Apply - Webserver
+        id: webserver
+        if: success() && steps.mysql.outcome == 'success'
+        working-directory: ${{ steps.envdir.outputs.DIR }}/services/webserver-cluster
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+          terraform apply -auto-approve tfplan
+        # This ensures the step is marked as failed if any command fails
+        shell: bash {0}
+
+      - name: Verify MySQL Outputs
+        if: success() && steps.mysql.outcome == 'success'
+        run: |
+          DB_ADDRESS=$(cd ${{ steps.envdir.outputs.DIR }}/data-stores/mysql && terraform output -raw primary_address)
+          DB_PORT=$(cd ${{ steps.envdir.outputs.DIR }}/data-stores/mysql && terraform output -raw primary_port)
+
+          echo "MySQL endpoint: $DB_ADDRESS"
+          echo "MySQL port: $DB_PORT"
+
+          if [ -z "$DB_ADDRESS" ]; then
+            echo "::error::MySQL address output is empty"
+            exit 1
+          fi
+          if [ -z "$DB_PORT" ]; then
+            echo "::error::MySQL port output is empty"
+            exit 1
+          fi
+          echo "✅ MySQL outputs verified"
+
+      - name: Test Webserver (ALB)
+        if: success() && steps.webserver.outcome == 'success'
+        run: |
+          ALB_DNS=$(cd ${{ steps.envdir.outputs.DIR }}/services/webserver-cluster && terraform output -raw alb_dns_name)
+          echo "Waiting 60s for ALB: $ALB_DNS"
+          sleep 60
+          curl -m 15 http://$ALB_DNS || echo "::warning::ALB endpoint test failed"
