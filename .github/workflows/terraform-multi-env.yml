@@ -9,7 +9,7 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/**'  # temporary
+      - '.github/workflows/**'  # You may comment it out after testing
       - 'stage/**/*'
       - 'prod/**/*'
   workflow_dispatch:
