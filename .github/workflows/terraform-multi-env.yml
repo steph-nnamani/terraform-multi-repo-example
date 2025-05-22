@@ -9,7 +9,7 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/**'  # temporary
+#     - '.github/workflows/**'  # uncomment for temporary trigger
       - 'stage/**/*'
       - 'prod/**/*'
   workflow_dispatch:
