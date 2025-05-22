@@ -9,8 +9,8 @@ on:
     branches:
       - main
     paths:
-      - 'stage/**'
-      - 'prod/**'
+      - 'stage/**/*'
+      - 'prod/**/*'
   workflow_dispatch:
     inputs:
       environment:
@@ -23,6 +23,22 @@ on:
           - prod
 
 jobs:
+
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+      - name: List modified files
+        run: |
+          git clone ${{ github.event.repository.clone_url }} repo
+          cd repo
+          git fetch origin ${{ github.event.before }} ${{ github.event.after }}
+          echo "Modified files:"
+          git diff --name-only ${{ github.event.before }} ${{ github.event.after }}
+
   terraform:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || (contains(join(github.event.commits.*.modified, ','), 'prod/') && 'production') || 'stage' }}
@@ -30,6 +46,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+           fetch-depth: 0 
 
       - name: Authenticate to AWS using OIDC
         uses: aws-actions/configure-aws-credentials@v1
@@ -41,7 +59,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.1.0  
+          terraform_version: 1.12.0  
           terraform_wrapper: false
 
       - name: Set environment directory
@@ -63,7 +81,7 @@ jobs:
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
         # This ensures the step is marked as failed if any command fails
-        shell: bash {0}
+        shell: bash
 
       - name: Terraform Init & Apply - Webserver
         id: webserver
@@ -74,7 +92,7 @@ jobs:
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
         # This ensures the step is marked as failed if any command fails
-        shell: bash {0}
+        shell: bash
 
       - name: Verify MySQL Outputs
         if: success() && steps.mysql.outcome == 'success'
