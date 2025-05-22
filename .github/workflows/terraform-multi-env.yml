@@ -58,9 +58,9 @@ jobs:
           aws-region: us-east-1
       
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.12.0  
+          terraform_version: 1.7.5  # Use the current stable version
           terraform_wrapper: false
 
       - name: Set environment directory
