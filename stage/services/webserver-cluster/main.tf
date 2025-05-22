@@ -1,69 +1,36 @@
 provider "aws" {
-    region = "us-east-1"
-    profile = "terraform"
+  region  = "us-east-1"  
+  # profile = "terraform" # We are now using OIDC provider in GitHub Action
 
-    # Tags to apply to all AWS resources by default
-    default_tags {
-      tags = {
-      Owner = "team-dev"
+  # Tags to apply to all AWS resources by default
+  default_tags {
+    tags = {
+      Owner     = "team-dev"
       ManagedBy = "Terraform"
-      }  
     }
+  }
 }
 
-# module "webserver_cluster" {
-# #    source = "../../../modules/services/webserver-cluster"
-#     source = "github.com/steph-nnamani/modules///services/webserver-cluster?ref=v0.0.1"   # Confirm the version
+module "webserver_cluster" {
+  #source = "C:/Users/xtrah/terraform-up-and-running-by-Yev-Brikman/chpt5-loops-conditionals-deployment/modules/services/webserver-cluster"
+  source = "github.com/steph-nnamani/modules//services/webserver-cluster?ref=v4.0.1" 
+  # source = "git::ssh://git@github.com/steph-nnamani/modules.git//services/webserver-cluster?ref=v3.1.1"   # Confirm the version
+  ami         = "ami-0866a3c8686eaeeba"
+  server_text = "Happy Mothers' Sunday!!!"
 
-#     cluster_name = "webservers-stage"
-#     db_remote_state_bucket = "zoe-terraform-running-state"
-#     db_remote_state_key = "stage/data-stores/mysql/terraform.tfstate"
-#     server_port = 8080
-#     instance_type = "t2.micro"
-#     min_size = 1
-#     max_size = 3
-#     enable_autoscaling = false
-# }
+  cluster_name            = "webservers-prod"
+  db_remote_state_bucket  = "zoe-terraform-running-state"
+  db_remote_state_key     = "prod/data-stores/mysql/terraform.tfstate"
+  server_port             = 8085
+  instance_type           = "t2.micro"
+  instance_type_alternate = "t2.medium"
+  min_size                = 5
+  max_size                = 10
+  enable_autoscaling      = true
 
-module "policies" {
-  source = "../../../../../modules/landing-zone/iam-policies"
+  custom_tags = {
+    Owner     = "team-dev"
+    ManagedBy = "terraform"
+  }
 }
-
-module "groups" {
-  source = "../../../../../modules/landing-zone/iam-groups"
-  
-  cloudwatch_full_access_policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
-  cloudwatch_read_only_access_policy_arn   = "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess"
-}
-
-module "users" {
-  source     = "../../../../../modules/landing-zone/iam-user"
-  user_names = var.user_names
-}  
-
-# resource "aws_iam_user_group_membership" "user_cloudwatch" {
-#   for_each = toset(var.user_names)
-#   user     = module.users.user_names[each.value]
-#   groups   = [
-#     each.value == "neo" && var.give_neo_cloudwatch_full_access ? 
-#       module.groups.cloudwatch_full_access_group_name : 
-#       module.groups.cloudwatch_read_only_group_name
-#   ]
-# }
-
-resource "aws_iam_user_group_membership" "user_cloudwatch" {
-  for_each = toset(module.users.user_names)
-  user     = each.value
-  groups   = concat(
-    [module.groups.cloudwatch_read_only_group_name],
-    each.value == "neo" && var.give_neo_cloudwatch_full_access ? [module.groups.cloudwatch_full_access_group_name] : []
-  )
-}
-
-
-
-#     for_each = toset(var.user_names)
-#     user_names = each.value 
-#     give_neo_cloudwatch_full_access = true
-# }
 
