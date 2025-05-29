@@ -87,60 +87,63 @@ terraform init
 terraform plan
 terraform apply
 
-# Destroy Infrastructure
+# terraform-multi-env.yml
+- You can deploy to prod in two ways:
+
+1. Manual deployment using workflow_dispatch:
+
+- Go to your GitHub repository
+- Click on the "Actions" tab
+- Select "Terraform Multi-Env Apply with Dependencies" workflow
+- Click "Run workflow" button
+- From the dropdown menu, select "prod" as the environment
+- Click "Run workflow" to start the deployment
+- Since you've configured a "production" environment with protection rules, you'll need to approve the deployment when prompted
+
+2. Automatic deployment by pushing changes to prod directory:
+- Make changes to files in the prod/ directory
+- Commit and push those changes to the main branch
+- The workflow will automatically detect changes in the prod directory and deploy to production
+- You'll still need to approve the deployment since it targets the "production" environment
+- The workflow determines which environment to deploy to based on:
+- For manual runs: The environment you select in the dropdown
+- For automatic runs: Which directory contains the changes (prod/ or stage/)
+- When deploying to prod, the workflow will:
+    - Set the environment to "production" (which triggers approval requirements)
+- Use the directory path "prod/data-stores/mysql" and "prod/services/webserver-cluster"
+- Apply the Terraform configurations in those directories
+
+# terraform-destroy.yml (Destroy Infrastructure)
 .github/workflows/terraform-destroy.yml
 The workflow executes as a manual workflow in GitHub Actions. Here's how it works:
+- Where you trigger it:
+- Go to your GitHub repository
+- Click on the "Actions" tab
+- In the left sidebar, you'll see "Terraform Destroy" listed under "Workflows"
+- Click on it, then click the "Run workflow" button
+- When you're prompted:
+- After clicking "Run workflow", a form appears with dropdown menus and input fields
+- You'll see all the inputs defined in the workflow:
+- Environment (dropdown: stage or prod)
+- Component (dropdown: all, webserver-cluster, or mysql)
+- Specific resources (text field for comma-separated resource targets)
+- Confirm destroy (text field where you must type "destroy")
 
-Where you trigger it:
-
-Go to your GitHub repository
-
-Click on the "Actions" tab
-
-In the left sidebar, you'll see "Terraform Destroy" listed under "Workflows"
-
-Click on it, then click the "Run workflow" button
-
-When you're prompted:
-
-After clicking "Run workflow", a form appears with dropdown menus and input fields
-
-You'll see all the inputs defined in the workflow:
-
-Environment (dropdown: stage or prod)
-
-Component (dropdown: all, webserver-cluster, or mysql)
-
-Specific resources (text field for comma-separated resource targets)
-
-Confirm destroy (text field where you must type "destroy")
-
-How selections work:
-
-Environment: Choose which environment to target (stage or prod)
-
-Component: Select which part of the infrastructure to destroy:
-
-all: Destroys both webserver-cluster and MySQL
-
-webserver-cluster: Only destroys the webserver component
-
-mysql: Only destroys the database component
-
-Specific resources: Optionally enter specific Terraform resource addresses to target
-
-Confirm destroy: Type "destroy" to confirm (safety mechanism)
-
-Execution flow:
-
+# How selections work:
+- Environment: Choose which environment to target (stage or prod)
+- Component: Select which part of the infrastructure to destroy:
+- all: Destroys both webserver-cluster and MySQL
+- webserver-cluster: Only destroys the webserver component
+- mysql: Only destroys the database component
+- Specific resources: Optionally enter specific Terraform resource addresses to target
+- Confirm destroy: Type "destroy" to confirm (safety mechanism)
+# Execution flow:
 After filling out the form and clicking "Run workflow"
-
 The workflow runs the safety-check job first
-
 If you selected "prod", you'll need to approve the workflow in the GitHub UI
-
 Then it destroys resources in the correct dependency order
-
-For production environments, there's an additional approval step because the workflow uses the "production" environment which you've configured with protection rules in GitHub.
+- For production environments, there's an additional approval step because the workflow uses the "production" environment which you've configured with protection rules in GitHub.
 
 The workflow is designed to be flexible while maintaining safety guardrails to prevent accidental destruction of resources.
+
+# TEST WORKFLOW FOR ONLY kubernetes-eks job.

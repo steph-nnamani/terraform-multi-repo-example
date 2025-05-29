@@ -47,7 +47,7 @@ on:
   workflow_dispatch:  # Add manual trigger option
   push:
     branches:
-      - main
+      - releases
     paths:
       - 'stage/services/kubernetes-eks/**'  # Only trigger on EKS changes
 

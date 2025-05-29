@@ -50,6 +50,8 @@ module "eks_cluster" {
   # they'll all be used up by system services (e.g., kube-proxy)
   # and you won't be able to deploy your own Pods.
   instance_types = ["t3.small"]
+  # Override the Kubernetes version to use a supported version
+  kubernetes_version = "1.28"  # Use a currently supported version
 }
 
 # Deploy a simple web app into the EKS cluster

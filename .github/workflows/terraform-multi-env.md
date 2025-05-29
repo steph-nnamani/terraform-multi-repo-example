@@ -22,7 +22,7 @@ on:
         options:
           - stage
           - prod
-
+          
 jobs:
 
   debug:
