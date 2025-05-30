@@ -37,7 +37,7 @@ data "aws_eks_cluster_auth" "cluster" {
 
 module "eks_cluster" {
   # source = "C:/Users/xtrah/terraform-up-and-running-by-Yev-Brikman/chpt4-reusable-infra-with-terraform-modules/module-example/modules/services/eks-cluster"
-  source = "github.com/steph-nnamani/modules//services/eks-cluster?ref=v1.1.1-eks-cluster"
+  source = "github.com/steph-nnamani/modules//services/eks-cluster?ref=v1.2.1-eks-cluster"
   name = var.cluster_name
 
   min_size     = 1
