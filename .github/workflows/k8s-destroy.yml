@@ -7,23 +7,53 @@ on:
       - destroy  # This workflow will run when you push to this branch
 
       # Add this permissions block
+name: Destroy EKS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - destroy  # This workflow will run when you push to this branch
+
 permissions:
-    id-token: write
-    contents: read
+  id-token: write
+  contents: read
 
 jobs:
   destroy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
+      - name: Check directory structure
+        run: |
+          echo "Current directory: $(pwd)"
+          ls -la
+          find . -type d | sort
+      
       - uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: "arn:aws:iam::418272752575:role/github-actions-oidc-example20250511055154010500000001"
           aws-region: us-east-1
+          
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.5
-      - run: |
-          cd ./stage/services/kubernetes-eks
+          
+      - name: Destroy EKS infrastructure
+        run: |
+          # First check if the directory exists
+          if [ -d "stage/services/kubernetes-eks" ]; then
+            cd stage/services/kubernetes-eks
+          elif [ -d "./stage/services/kubernetes-eks" ]; then
+            cd ./stage/services/kubernetes-eks
+          else
+            echo "Error: Could not find kubernetes-eks directory"
+            echo "Searching for similar directories:"
+            find . -name "*kubernetes*" -type d
+            exit 1
+          fi
+          
+          # Now run Terraform commands
           terraform init
           terraform destroy -auto-approve
