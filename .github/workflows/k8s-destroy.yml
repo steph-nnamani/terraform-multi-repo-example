@@ -1,48 +1,24 @@
-permissions:
-  id-token: write
-  contents: read 
-
-name: Kubernetes EKS Destroy
+name: Destroy EKS
 
 on:
-  workflow_dispatch:  # Manual trigger only
-    inputs:
-      confirm_destroy:
-        description: 'Type "destroy" to confirm destruction'
-        required: true
+  workflow_dispatch:
+  push:
+    branches:
+      - destroy  # This workflow will run when you push to this branch
 
 jobs:
-  terraform-destroy:
+  destroy:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # Increase timeout for EKS destruction
-
     steps:
-      - name: Check confirmation
-        if: github.event.inputs.confirm_destroy != 'destroy'
-        run: |
-          echo "Error: You must type 'destroy' to confirm destruction"
-          exit 1
-
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Authenticate to AWS using OIDC
-        uses: aws-actions/configure-aws-credentials@v1
+      - uses: actions/checkout@v3
+      - uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: "arn:aws:iam::418272752575:role/github-actions-oidc-example20250511055154010500000001"
           aws-region: us-east-1
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.7.5
-          terraform_wrapper: false
-
-      - name: Terraform Init
-        working-directory: ./stage/services/kubernetes-eks
-        run: terraform init
-
-      - name: Terraform Destroy
-        working-directory: ./stage/services/kubernetes-eks
-        run: terraform destroy -auto-approve
-        shell: bash
+      - run: |
+          cd ./stage/services/kubernetes-eks
+          terraform init
+          terraform destroy -auto-approve
