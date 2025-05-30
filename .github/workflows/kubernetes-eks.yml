@@ -34,8 +34,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Only run this check for manual workflow runs with destroy action
       - name: Validate destroy confirmation
-        if: github.event.inputs.action == 'destroy' && github.event.inputs.confirm_destroy != 'destroy'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy' && github.event.inputs.confirm_destroy != 'destroy'
         run: |
           echo "Error: You must type 'destroy' in the confirm_destroy field to proceed with destruction"
           exit 1
@@ -56,14 +57,17 @@ jobs:
         working-directory: ./stage/services/kubernetes-eks
         run: terraform init
 
+      # Run apply for push events OR manual runs with apply action
       - name: Terraform Apply
-        if: github.event.inputs.action != 'destroy' && github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
         working-directory: ./stage/services/kubernetes-eks
         run: terraform apply -auto-approve
         shell: bash
 
+      # Only run destroy for manual workflow runs with destroy action
       - name: Terraform Destroy
-        if: github.event.inputs.action == 'destroy' && github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy' && github.event.inputs.confirm_destroy == 'destroy'
         working-directory: ./stage/services/kubernetes-eks
         run: terraform destroy -auto-approve
         shell: bash
+
