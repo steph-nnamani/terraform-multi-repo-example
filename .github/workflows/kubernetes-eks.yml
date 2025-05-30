@@ -5,7 +5,7 @@ permissions:
 name: Kubernetes EKS Workflow
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # Manual trigger option
     inputs:
       action:
         description: 'Action to perform'
@@ -16,18 +16,19 @@ on:
           - apply
           - destroy
       confirm_destroy:
-        description: 'Type "destroy" to confirm destruction (only needed for destroy action)'
+        description: 'Type "destroy" to confirm destruction (only for destroy action)'
         required: false
   push:
     branches:
       - releases
     paths:
       - 'stage/services/kubernetes-eks/**'
+      - '.github/workflows/kubernetes-eks.yml'
 
 jobs:
   terraform-action:
     runs-on: ubuntu-latest
-    timeout-minutes: 60  # Increase timeout for EKS operations
+    timeout-minutes: 60  # Increase timeout for EKS creation
 
     steps:
       - name: Checkout code
@@ -56,13 +57,13 @@ jobs:
         run: terraform init
 
       - name: Terraform Apply
-        if: github.event.inputs.action != 'destroy'
+        if: github.event.inputs.action != 'destroy' && github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         working-directory: ./stage/services/kubernetes-eks
         run: terraform apply -auto-approve
         shell: bash
 
       - name: Terraform Destroy
-        if: github.event.inputs.action == 'destroy'
+        if: github.event.inputs.action == 'destroy' && github.event_name == 'workflow_dispatch'
         working-directory: ./stage/services/kubernetes-eks
         run: terraform destroy -auto-approve
         shell: bash
