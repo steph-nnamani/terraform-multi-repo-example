@@ -6,15 +6,6 @@ on:
     branches:
       - destroy  # This workflow will run when you push to this branch
 
-      # Add this permissions block
-name: Destroy EKS
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - destroy  # This workflow will run when you push to this branch
-
 permissions:
   id-token: write
   contents: read
