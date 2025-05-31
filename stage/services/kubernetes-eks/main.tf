@@ -37,7 +37,7 @@ data "aws_eks_cluster_auth" "cluster" {
 
 module "eks_cluster" {
   # source = "C:/Users/xtrah/terraform-up-and-running-by-Yev-Brikman/chpt4-reusable-infra-with-terraform-modules/module-example/modules/services/eks-cluster"
-  source = "github.com/steph-nnamani/modules//services/eks-cluster?ref=v1.0.1-eks-cluster"
+  source = "github.com/steph-nnamani/modules//services/eks-cluster?ref=v2.2.0-eks-cluster"
   name = var.cluster_name
 
   min_size     = 1
@@ -56,12 +56,12 @@ module "eks_cluster" {
 
 module "simple_webapp" {
   # source = "C:/Users/xtrah/terraform-up-and-running-by-Yev-Brikman/chpt4-reusable-infra-with-terraform-modules/module-example/modules/services/K8s-app"
-  source = "github.com/steph-nnamani/modules//services/K8s-app?ref=v1.0.1-K8s-app"
+  source = "github.com/steph-nnamani/modules//services/K8s-app?ref=v2.2.0-K8s-app"
   name = var.app_name
 
-  image          = "training/webapp"
+  image          = "nginxdemos/hello"   #"training/webapp"
   replicas       = 2
-  container_port = 5000
+  container_port = 80
 
   environment_variables = {
     PROVIDER = "Terraform"
