@@ -40,6 +40,8 @@ module "eks_cluster" {
   source = "github.com/steph-nnamani/modules//services/eks-cluster?ref=v2.2.2-eks-cluster"
   name = var.cluster_name
 
+  kubernetes_version = "1.28"
+
   min_size     = 1
   max_size     = 2
   desired_size = 1
