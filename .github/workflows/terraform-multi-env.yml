@@ -7,11 +7,11 @@ name: Terraform Multi-Env Apply with Dependencies
 on:
   push:
     branches:
-      - main
+      - webserver
     paths:
-      - '.github/workflows/**'  # You may comment it out after testing
+    #  - '.github/workflows/terraform-multi-env.yml'  # You may comment it out after testing
       - 'stage/**/*'
-      - 'prod/**/*'
+    #  - 'prod/**/*'
   workflow_dispatch:
     inputs:
       environment:

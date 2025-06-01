@@ -49,7 +49,8 @@ on:
     branches:
       - main
     paths:
-      - 'stage/services/kubernetes-eks/**'  # Only trigger on EKS changes
+    #  - 'stage/services/kubernetes-eks/**'  # Only trigger on EKS changes
+      - '.github/workflows/kubernetes-eks.yml'  # You may comment it out after testing
 
 jobs:
   terraform-apply:
